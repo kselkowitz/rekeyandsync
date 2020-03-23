@@ -94,12 +94,26 @@ if (isset($_REQUEST['domain'])){
 
                 // resync device
 
- 	        $query = array(
-	                'object' => 'device',
-                        'action' => 'update',
-                        'device' => "$aor",
-                        'check-sync' => "yes",
-                );
+                    if(stristr($aor, "Yealink") === FALSE) 
+                    {
+
+                        $query = array(
+                            'object' => 'device',
+                            'action' => 'update',
+                            'device' => "$aor",
+                            'check-sync' => "yes",
+                        );
+                    }
+                    else
+                    {
+                        $query = array(
+                            'object' => 'device',
+                            'action' => 'update',
+                            'device' => "$aor",
+                            'check-sync' => "yes",
+                            'evtCheckSync' => "check-sync;reboot=true",
+                        );
+                    }
 
                 __doCurl("https://".SERVER."/ns-api/", CURLOPT_POST, "Authorization: Bearer " . $token, $query, null, $http_response);
 

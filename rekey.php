@@ -1,42 +1,12 @@
 <?php
 
 define("SERVER", "serverfqdn");
-define("SUPERUSER", "username");
-define("PASSWORD", "password");
-define("CLIENTID", "clientid");
-define("CLIENTSECRET", "clientsecret");
+define("APIKEY", "su access api key");
 define("KEYLENGTH", "10");
 define("CONFHOST", "@conference-bridge");
 
-/* First Step is to get a new Access token to given server.*/
-$query = array(
-		'grant_type'	=> 'password',
-		'username'		=> SUPERUSER,
-		'password'		=> PASSWORD,
-		'client_id'		=> CLIENTID,
-		'client_secret'		=> CLIENTSECRET,
-);
 
-$postFields = http_build_query($query);
-$http_response = "";
-
-$curl_result = __doCurl("https://".SERVER."/ns-api/oauth2/token", CURLOPT_POST, NULL, NULL, $postFields, $http_response);
-
-if (!$curl_result){
-	header( 'Location: rekey.php?error=server' ) ;
-	exit;
-
-}
-
-$token = json_decode($curl_result, /*assoc*/true);
-
-if (!isset($token['access_token'])) {
-	header( 'Location: rekey.php?error=server' ) ;
-	exit;
-
-}
-
-$token = $token['access_token'];
+$token = APIKEY;
 
 /* Get domain List */
 $query = array(

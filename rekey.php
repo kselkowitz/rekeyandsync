@@ -1,10 +1,15 @@
 <?php
 
-define("SERVER", "serverfqdn");
+define("SERVER", "server-fqdn");
 define("APIKEY", "su access api key");
-define("KEYLENGTH", "10");
+define("KEYLENGTH", "12");
 define("CONFHOST", "@conference-bridge");
+define("SKIP_SUFFIXES", "m,t");   // comma-separated suffixes to skip, e.g. "m,t"
+define("CHANGE_PROV_PASS", false); // set true to also change device-provisioning-password
 
+// if you set CHANGE_PROV_PASS be sure to have a way for the phone to get the config one of these options:
+// whitelisting IPs with skipAuth_whitelist
+// or allowing registered IP to bypass auth with SAFE_BypassAuthIfRegIpMatch set yes
 
 $token = APIKEY;
 
@@ -42,7 +47,6 @@ if (isset($_REQUEST['domain'])){
 		'object' => 'device',
 		'action' => 'read',
 		'format' => 'json',
-		'noNDP' => 'true',
 		'domain' => "$resetDomain",
 	);
 
@@ -53,7 +57,8 @@ if (isset($_REQUEST['domain'])){
 	foreach ($deviceList as $array) {
 		//echo $array[aor].'<br>';
 		// reset device password and resync
-
+                $mac = $array[mac];
+                $model = $array[model];
 		$aor = $array[aor];
 		$newPass = substr(md5(uniqid(rand())),0, KEYLENGTH);
 
@@ -62,9 +67,23 @@ if (isset($_REQUEST['domain'])){
                 if(stristr($aor, CONFHOST) === FALSE) {
 		// not a bridge
 
+                // check skip suffixes
+                $localPart = strstr($aor, '@', true);
+                $skipSuffixes = array_filter(array_map('trim', explode(',', SKIP_SUFFIXES)));
+                $shouldSkip = false;
+                foreach ($skipSuffixes as $suffix) {
+                    if ($suffix !== '' && substr($localPart, -strlen($suffix)) === $suffix) {
+                        $shouldSkip = true;
+                        break;
+                    }
+                }
+
+                if ($shouldSkip) {
+                    echo "<br>skipping $aor (suffix match)";
+                } else {
                 // resync device
 
-                    if(stristr($aor, "Yealink") === FALSE) 
+                    if(stristr($aor, "Yealink") === FALSE)
                     {
 
                         $query = array(
@@ -87,7 +106,7 @@ if (isset($_REQUEST['domain'])){
 
                 __doCurl("https://".SERVER."/ns-api/", CURLOPT_POST, "Authorization: Bearer " . $token, $query, null, $http_response);
 
-		sleep(2);
+		sleep(1);
 
 		// change password
 		$query = array(
@@ -100,13 +119,34 @@ if (isset($_REQUEST['domain'])){
 
 	        __doCurl("https://".SERVER."/ns-api/", CURLOPT_POST, "Authorization: Bearer " . $token, $query, null, $http_response);
 
+		// change provisioning password 
+		if (CHANGE_PROV_PASS and $mac != "") {
+			$provPass = substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', 3)), 0, KEYLENGTH);
+
+			$query= array (
+                        	'object' => 'mac',
+                        	'action' => 'update',
+                        	'mac' => "$mac",
+				'model' => "$model",
+                        	'auth_pass' => "$provPass",
+                	);
+
+	                __doCurl("https://".SERVER."/ns-api/", CURLOPT_POST, "Authorization: Bearer " . $token, $query, null, $http_response);
+
+			echo "<br>". $mac. " provisioning password reset";
+
+		}
 
 		echo "<br>reset and resync $aor";
+                } // end suffix check
 		}
 		else
 		{
                         echo "<br>skipping bridge $aor";
 		}
+
+    		ob_flush();
+		flush();
 
 	}
 }
